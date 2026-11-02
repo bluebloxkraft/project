@@ -125,6 +125,7 @@ def search_by_artist():
 def show_top_rated_graph():
     q = "SELECT title, artist, rating FROM music ORDER BY rating DESC"
     cur.execute(q)
+
     # only get first 10 for top 10 rated songs
     # order then reversed so the the bar
     # of the highest rated one is on top and such
@@ -205,8 +206,9 @@ def interact_song(url, uid):
 
         if ch == "1":
             print(f"Opening {url} in web browser")
+
             # open in a new tab
-            webbrowser.open(url, new=2)
+            webbrowser.open(url, new=2, autoraise=True)
             break
         elif ch == "2":
             r = input("Enter rating (0-5): ")
@@ -216,6 +218,7 @@ def interact_song(url, uid):
                 continue
 
             # q1 sets the new avg rating
+            # q2 updates the number of ratings
             q1 = f"UPDATE music SET rating=(rating * rate_no + {r}) / (rate_no+1) WHERE id='{uid}'"
             q2 = f"UPDATE music SET rate_no=rate_no + 1 WHERE id='{uid}'"
             cur.execute(q1)
@@ -344,6 +347,7 @@ def print_table(table_raw, titles) -> None:
     for r in table_raw:
         L = []
         for c in r:
+
             # this checks if c is of type datetime.timedelta
             # (given by the "duration" column)
             # and if it is also less than 1 hour, it removes first two chars
