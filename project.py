@@ -3,9 +3,9 @@ Music catalogue with a simple rating system
 """
 
 import mysql.connector as mc
-import datetime as dt
+import datetime
 import webbrowser
-import uuid
+import random
 import matplotlib.pyplot as plt
 
 conn = None
@@ -13,7 +13,6 @@ cur = None
 
 # queue of queries made with admin menu which can be commited
 changes_made = []
-
 
 def main():
     global conn
@@ -30,7 +29,7 @@ def main():
             conn = mc.connect(
                 host="localhost",
                 user="guest",
-                password="clocktowersarecool",
+                password="guestpassword",
                 database="music_project",
                 charset="utf8"
             )
@@ -123,7 +122,7 @@ def search_by_artist():
     selection_menu(q1, q2)
 
 def show_top_rated_graph():
-    q = "SELECT title, artist, rating FROM music ORDER BY rating DESC"
+    q = "SELECT title, artist, rating FROM music NATURAL JOIN ratings ORDER BY ratings.rating DESC;"
     cur.execute(q)
 
     # only get first 10 for top 10 rated songs
@@ -144,6 +143,10 @@ def show_top_rated_graph():
 
     plt.show()
 
+# this function takes two queries one for retrieving the actual table used to display
+# to the user and the other for the corresponding URLs and IDs
+# the titles paramter is the list of stylised column names displayed to the user
+# and it has the default value given in the function definition
 def selection_menu(q1, q2, titles=["Title", "Artist(s)", "Duration"]):
     cur.execute(q1)
     table = cur.fetchall()
@@ -219,8 +222,8 @@ def interact_song(url, uid):
 
             # q1 sets the new avg rating
             # q2 updates the number of ratings
-            q1 = f"UPDATE music SET rating=(rating * rate_no + {r}) / (rate_no+1) WHERE id='{uid}'"
-            q2 = f"UPDATE music SET rate_no=rate_no + 1 WHERE id='{uid}'"
+            q1 = f"UPDATE ratings SET rating=(rating * rate_no + {r}) / (rate_no+1) WHERE id='{uid}'"
+            q2 = f"UPDATE ratings SET rate_no=rate_no + 1 WHERE id='{uid}'"
             cur.execute(q1)
             conn.commit()
             cur.execute(q2)
@@ -271,15 +274,17 @@ def add_song():
     artist = input("Enter the artists: ")
     dur = input("Enter the duration (h:mm:ss): ")
     url = input("Enter the URL: ")
-    uid = uuid.uuid8().hex[0:16]
+    uid = gen_uid()
 
-    q = f"INSERT INTO music VALUES('{uid}', '{title}', '{artist}', '{dur}', '{url}', 0, 0)"
-    changes_made.append(q)
+    q1 = f"INSERT INTO music VALUES('{uid}', '{title}', '{artist}', '{dur}', '{url}')"
+    q2 = f"INSERT INTO ratings VALUES('{uid}', 0, 0)"
+    changes_made.append(q1)
+    changes_made.append(q2)
 
 def modify_song():
     cur.execute("SELECT * FROM music")
     table = cur.fetchall()
-    print_table(table, ["ID", "Title", "Artist(s)", "Duration", "URL", "Rating (Avg)", "No. of Ratings"])
+    print_table(table, ["ID", "Title", "Artist(s)", "Duration", "URL"])
 
     properties = ["title", "artist", "duration", "url"]
 
@@ -298,12 +303,14 @@ def modify_song():
 def remove_song():
     cur.execute("SELECT * FROM music")
     table = cur.fetchall()
-    print_table(table, ["ID", "Title", "Artist(s)", "Duration", "URL", "Rating (Avg)", "No. of Ratings"])
+    print_table(table, ["ID", "Title", "Artist(s)", "Duration", "URL"])
 
     uid = input("Enter ID of the song entry: ")
 
-    q = f"DELETE FROM music WHERE ID='{uid}'"
-    changes_made.append(q)
+    q1 = f"DELETE FROM music WHERE ID='{uid}'"
+    q2 = f"DELETE FROM ratings WHERE ID='{uid}'"
+    changes_made.append(q1)
+    changes_made.append(q2)
 
 def commit_changes():
     ch = input("Enter are you sure? (y/N): ")
@@ -329,6 +336,18 @@ def discard_changes():
     changes_made.clear()
     print("Changes discarded")
 
+# this function generates a unique ID for a song entry
+# consisting of random alphabets and digits
+def gen_uid():
+    chars = "abcdefghijklomnpqrstuvwxyz1234567890"
+
+    result = ""
+
+    for _ in range(16):
+        result += chars[random.randrange(len(chars))]
+
+    return result
+
 # this function is used to print the table return by MySQL
 # it takes the table data given by fetchall() and prints it in the same
 # table format as MySQL does
@@ -352,7 +371,7 @@ def print_table(table_raw, titles) -> None:
             # (given by the "duration" column)
             # and if it is also less than 1 hour, it removes first two chars
             # for eg., 0:04:39 becomes 04:39
-            if type(c) == dt.timedelta and c.total_seconds() < 3600:
+            if type(c) == datetime.timedelta and c.total_seconds() < 3600:
                 L.append(str(c)[2::])
             else:
                 L.append(str(c))
