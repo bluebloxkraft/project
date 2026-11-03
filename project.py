@@ -367,8 +367,7 @@ def print_table(table_raw, titles) -> None:
 
     len_cl = len(col_lengths)
 
-    # checks the num of cols of first row
-    # we already know the table has rows
+    # checks the num of cols of first row which is same as the rest
     if len(table[0]) != len(titles):
         raise ValueError("'titles' must the same number of elements as the table columns")
 
