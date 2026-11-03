@@ -386,8 +386,7 @@ def print_table(table_raw, titles) -> None:
 
     len_cl = len(col_lengths)
 
-    # checks the num of cols of first row
-    # we already know the table has rows
+    # checks the num of cols of first row which is same as the rest
     if len(table[0]) != len(titles):
         raise ValueError("'titles' must the same number of elements as the table columns")
 
@@ -401,7 +400,7 @@ def print_table(table_raw, titles) -> None:
 
     # this makes the border
     # eg: +----+------------+------+
-    # n+2 to add a 1 space gap between boundaries
+    # n+2 to account for a 1 space gap between titles and the vertical bars
     horiz_border = "+" + "+".join(["-"*(n+2) for n in col_lengths]) + "+\n"
 
     # the resultant output
@@ -421,4 +420,5 @@ def print_table(table_raw, titles) -> None:
 
     print(res)
 
+# run the main() function
 main()
