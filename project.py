@@ -133,7 +133,6 @@ def show_top_rated_graph():
     ratings = [x[2] for x in table]
 
     # matplotlib horizontal bar graph
-    colors = []
     plt.barh(songs, ratings, color="skyblue")
     plt.xlabel("Rating (avg)", fontsize=7)
     plt.ylabel("Songs", fontsize=7)
