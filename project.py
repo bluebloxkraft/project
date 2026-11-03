@@ -144,7 +144,7 @@ def show_top_rated_graph():
 
 # this function takes two queries one for retrieving the actual table used to display
 # to the user and the other for the corresponding URLs and IDs
-# the titles paramter is the list of stylised column names displayed to the user
+# the titles parameter is the list of stylised column names displayed to the user
 # and it has the default value given in the function definition
 def selection_menu(q1, q2, titles=["Title", "Artist(s)", "Duration"]):
     cur.execute(q1)
