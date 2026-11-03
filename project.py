@@ -351,7 +351,7 @@ def gen_uid():
 # this function is used to print the table return by MySQL
 # it takes the table data given by fetchall() and prints it in the same
 # table format as MySQL does
-def print_table(table_raw, titles) -> None:
+def print_table(table_raw, titles):
     if len(titles) == 0:
         raise ValueError("'titles' can not be []")
 
@@ -366,7 +366,6 @@ def print_table(table_raw, titles) -> None:
     for r in table_raw:
         L = []
         for c in r:
-
             # this checks if c is of type datetime.timedelta
             # (given by the "duration" column)
             # and if it is also less than 1 hour, it removes first two chars
