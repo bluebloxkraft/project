@@ -14,7 +14,6 @@ cur = None
 # queue of queries made with admin menu which can be commited
 changes_made = []
 
-
 def main():
     global conn
 
