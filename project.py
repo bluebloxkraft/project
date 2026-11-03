@@ -12,7 +12,7 @@ conn = None
 cur = None
 
 # queue of queries made with admin menu which can be commited
-changes_made = []
+changes_queue = []
 
 def main():
     global conn
@@ -39,6 +39,9 @@ def main():
 
         try:
             user_menu()
+        
+        # this except clause handles the interrupt caused when ctrl-c is pressed
+        # and closes the cursor and connection before exiting
         except KeyboardInterrupt:
             print("Exiting...")
             cur.close()
@@ -66,7 +69,6 @@ def main():
             cur.close()
             conn.close()
             return
-
     else:
         print("Invalid option")
 
@@ -136,8 +138,8 @@ def show_top_rated_graph():
     plt.barh(songs, ratings, color="skyblue")
     plt.xlabel("Rating (avg)", fontsize=7)
     plt.ylabel("Songs", fontsize=7)
-    plt.xticks(fontsize=5)
-    plt.yticks(fontsize=5)
+    plt.xticks(fontsize=3)
+    plt.yticks(fontsize=3)
     plt.title("Top 10 Highest Rated Songs")
 
     plt.show()
@@ -145,7 +147,6 @@ def show_top_rated_graph():
 # this function takes two queries one for retrieving the actual table used to display
 # to the user and the other for the corresponding URLs and IDs
 # the titles parameter is the list of stylised column names displayed to the user
-# and it has the default value given in the function definition
 def selection_menu(q1, q2, titles=["Title", "Artist(s)", "Duration"]):
     cur.execute(q1)
     table = cur.fetchall()
@@ -153,7 +154,7 @@ def selection_menu(q1, q2, titles=["Title", "Artist(s)", "Duration"]):
     urls_and_ids = cur.fetchall()
 
     if len(table) == 0:
-        print("Table is empty")
+        print("No results")
         return
 
     if len(table) != len(urls_and_ids):
@@ -161,18 +162,18 @@ def selection_menu(q1, q2, titles=["Title", "Artist(s)", "Duration"]):
 
     table_numbered = []
 
+    # gives new table with serial nums in the first column
     for i in range(len(table)):
-        # gives new table with serial nums in the first column
         table_numbered.append([str(i)] + list(table[i]))
 
     print_table(table_numbered, ["No."] + titles)
     print()
 
     while True:
-        ch = input("Enter number to open (n for none): ")
+        ch = input("Enter number to open (or 'n' for none): ")
 
         if ch in "Nn":
-            print("Quiting selection...")
+            print("Exiting selection...")
             return
 
         found = False
@@ -191,12 +192,15 @@ def selection_menu(q1, q2, titles=["Title", "Artist(s)", "Duration"]):
         retry = input("Retry? (Y/n): ")
 
         # quit if user enters n or N
-        # the second condition ensures this since an empty
-        # string satisfies the first condition too
+        # the second condition ensures this since an empty string satisfies
+        # the first condition too
         if retry in "Nn" and retry != "":
-            print("Quiting selection...")
+            print("Exiting selection...")
             break
 
+# this function is used to interact with the song selected by the user
+# the url paramter is used to open the song in browser
+# uid parameter is used to submit the user's rating of the selected song
 def interact_song(url, uid):
     while True:
         print("1 - open song")
@@ -229,7 +233,7 @@ def interact_song(url, uid):
             conn.commit()
             break
         elif ch == "3":
-            print("Quitting selection...")
+            print("Exiting selection...")
             break
         else:
             print("Invalid option")
@@ -277,8 +281,8 @@ def add_song():
 
     q1 = f"INSERT INTO music VALUES('{uid}', '{title}', '{artist}', '{dur}', '{url}')"
     q2 = f"INSERT INTO ratings VALUES('{uid}', 0, 0)"
-    changes_made.append(q1)
-    changes_made.append(q2)
+    changes_queue.append(q1)
+    changes_queue.append(q2)
 
 def modify_song():
     cur.execute("SELECT * FROM music")
@@ -291,13 +295,13 @@ def modify_song():
     ch = input("Which property to change?: ")
 
     if ch not in properties:
-        print("Invalid property. Must be title, artist, duration or url")
+        print("Invalid property. Must be 'title', 'artist', 'duration' or 'url'")
         return
 
     val = input("Enter new value: ").replace("\"", "\\\"")
 
     q = f"UPDATE music SET {ch}='{val}' WHERE id='{uid}'"
-    changes_made.append(q)
+    changes_queue.append(q)
 
 def remove_song():
     cur.execute("SELECT * FROM music")
@@ -306,10 +310,10 @@ def remove_song():
 
     uid = input("Enter ID of the song entry: ")
 
-    q1 = f"DELETE FROM music WHERE ID='{uid}'"
-    q2 = f"DELETE FROM ratings WHERE ID='{uid}'"
-    changes_made.append(q1)
-    changes_made.append(q2)
+    q1 = f"DELETE FROM ratings WHERE ID='{uid}'"
+    q2 = f"DELETE FROM music WHERE ID='{uid}'"
+    changes_queue.append(q1)
+    changes_queue.append(q2)
 
 def commit_changes():
     ch = input("Enter are you sure? (y/N): ")
@@ -320,8 +324,8 @@ def commit_changes():
 
     print("Committing changes...")
 
-    while changes_made != []:
-        q  = changes_made.pop(0)
+    while changes_queue != []:
+        q  = changes_queue.pop(0)
         cur.execute(q)
         conn.commit()
 
@@ -332,7 +336,7 @@ def discard_changes():
         print("Not discarding changes")
         return
 
-    changes_made.clear()
+    changes_queue.clear()
     print("Changes discarded")
 
 # this function generates a unique ID for a song entry
@@ -342,7 +346,7 @@ def gen_uid():
 
     result = ""
 
-    for _ in range(16):
+    for i in range(16):
         result += chars[random.randrange(len(chars))]
 
     return result
@@ -350,19 +354,30 @@ def gen_uid():
 # this function is used to print the table return by MySQL
 # it takes the table data given by fetchall() and prints it in the same
 # table format as MySQL does
-def print_table(table_raw, titles):
-    if len(titles) == 0:
-        raise ValueError("'titles' can not be []")
-
-    if len(table_raw) == 0:
+def print_table(table_data, titles):
+    if len(table_data) == 0:
         print("Table is empty")
         return
+
+    if len(titles) == 0:
+        raise ValueError("'titles' can not be []")
 
     col_lengths = []
 
     table = []
 
-    for r in table_raw:
+    for t in titles:
+        if type(t) != str:
+            raise TypeError("the values in 'titles' must be strings")
+
+        # set the column lengths
+        col_lengths.append(len(t))
+
+    # number of columns
+    len_cl = len(col_lengths)
+
+    # convert all values to string
+    for r in table_data:
         L = []
         for c in r:
             # this checks if c is of type datetime.timedelta
@@ -374,15 +389,6 @@ def print_table(table_raw, titles):
             else:
                 L.append(str(c))
         table.append(L)
-
-    for t in titles:
-        if type(t) != str:
-            raise TypeError("the values in 'titles' must be strings")
-
-        # set the column lengths
-        col_lengths.append(len(t))
-
-    len_cl = len(col_lengths)
 
     # checks the num of cols of first row which is same as the rest
     if len(table[0]) != len(titles):
@@ -398,25 +404,25 @@ def print_table(table_raw, titles):
 
     # this makes the border
     # eg: +----+------------+------+
-    # n+2 to account for a 1 space gap between titles and the vertical bars
+    # n+2 to account for a single-space gap between titles and the vertical bars
     horiz_border = "+" + "+".join(["-"*(n+2) for n in col_lengths]) + "+\n"
 
     # the resultant output
-    res = horiz_border
+    result = horiz_border
 
     # all title appended with padding spaces
     padded_titles = [f"{titles[i]:{col_lengths[i]}}" for i in range(len_cl)]
     # the titles eg | artist | title | url |
-    res += "| " + " | ".join(padded_titles) + " |\n"
-    res += horiz_border
+    result += "| " + " | ".join(padded_titles) + " |\n"
+    result += horiz_border
 
     for r in table:
         padded_columns = [f"{r[i]:{col_lengths[i]}}" for i in range(len_cl)]
-        res += "| " + " | ".join(padded_columns) + " |\n"
+        result += "| " + " | ".join(padded_columns) + " |\n"
 
-    res += horiz_border
+    result += horiz_border
 
-    print(res)
+    print(result)
 
 # run the main() function
 main()
