@@ -380,7 +380,7 @@ def print_table(table_raw, titles) -> None:
 
     # this makes the border
     # eg: +----+------------+------+
-    # n+2 to add a 1 space gap between boundaries
+    # n+2 to account for a 1 space gap between titles and the vertical bars
     horiz_border = "+" + "+".join(["-"*(n+2) for n in col_lengths]) + "+\n"
 
     # the resultant output
@@ -400,4 +400,5 @@ def print_table(table_raw, titles) -> None:
 
     print(res)
 
+# run the main() function
 main()
